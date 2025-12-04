@@ -4,9 +4,10 @@ from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 # This is a demo, so a hard coded username and password is okay.
 # This isn't something to do in production.
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://appuser:94nfsUl7@localhost/appdata'
-db = SQLAlchemy(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqldb://appuser:94nfsUl7@localhost/appdata'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+db = SQLAlchemy(app)
 
 class Greeting(db.Model):
     """ A simple class to represent a greeting """
@@ -38,19 +39,25 @@ class Greeting(db.Model):
 def main():
     """ The index.html route """
     if request.method == 'POST':
-        if request.form['greeting'] is not None:
-            Greeting.get_or_create(request.form['greeting'])
+        # Safely get form data
+        greeting_msg = request.form.get('greeting')
+        if greeting_msg:
+            Greeting.get_or_create(greeting_msg)
 
     return render_template('index.html', greetings=Greeting.query.all())
 
-# Make sure the tables exist
-db.create_all()
+with app.app_context():
+    # Make sure the tables exist
+    db.create_all()
 
-# Create some records.
-Greeting.get_or_create("Hello!")
-Greeting.get_or_create("Hola!")
-Greeting.get_or_create("Ciao!")
-
+    # Create some records.
+    try:
+        Greeting.get_or_create("Hello!")
+        Greeting.get_or_create("Hola!")
+        Greeting.get_or_create("Ciao!")
+    except Exception as e:
+        # Ignore errors if DB isn't ready or data exists
+        print(f"Startup data skipped: {e}")
 
 if __name__ == "__main__":
     app.run()
